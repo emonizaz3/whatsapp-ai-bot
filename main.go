@@ -34,7 +34,7 @@ import (
 const (
 	defaultPort    = "8080"
 	defaultModel   = "openai/gpt-oss-120b"
-	maxLogsHistory = 200
+	maxLogsHistory = 100
 )
 
 // Dynamic Paths for persistence (Render hosting)
@@ -311,11 +311,13 @@ func addLog(level, logType, target, message string) {
 		os.WriteFile(logsPath, out, 0644)
 	}
 
-	// Output to stdout
-	if target != "" {
-		fmt.Printf("[%s] [%s] [%s] %s\n", level, logType, target, message)
-	} else {
-		fmt.Printf("[%s] [%s] %s\n", level, logType, message)
+	// Output to stdout (only output warnings, errors, or connection status updates to console to optimize memory/CPU)
+	if level == "WARNING" || level == "ERROR" || logType == "connection_status" {
+		if target != "" {
+			fmt.Printf("[%s] [%s] [%s] %s\n", level, logType, target, message)
+		} else {
+			fmt.Printf("[%s] [%s] %s\n", level, logType, message)
+		}
 	}
 }
 
@@ -554,7 +556,7 @@ func eventHandler(evt interface{}) {
 				}()
 			}
 		} else {
-			addLog("INFO", "bot_action", senderNum, "মেসেজটি টার্গেট নাম্বারের নয়।")
+			// Silently drop non-target messages to optimize disk write I/O and log memory storage
 		}
 	}
 }
@@ -960,11 +962,15 @@ func main() {
 		fmt.Println("🔓 Warning: Dashboard access is unsecured. Set DASHBOARD_USERNAME and DASHBOARD_PASSWORD in environment to secure it.")
 	}
 
+	var diskWarningMsg string = ""
+
 	// Handle persistent data directory for Render.com hosting
 	if envDir := os.Getenv("DATA_DIR"); envDir != "" {
 		dataDir = envDir
 		if err := os.MkdirAll(dataDir, 0755); err != nil {
 			fmt.Printf("⚠️ Warning: Failed to create DATA_DIR %s: %v\n", dataDir, err)
+			diskWarningMsg = fmt.Sprintf("Persistent data directory creation failed (%s: %v). Data will NOT persist across restarts! Ensure a Persistent Disk is attached and mounted in Render settings.", dataDir, err)
+			
 			// Fallback to local directory if we can't write to the specified DATA_DIR
 			dataDir = "./data"
 			if errFallback := os.MkdirAll(dataDir, 0755); errFallback != nil {
@@ -981,6 +987,10 @@ func main() {
 
 	if _, err := os.Stat(logsPath); os.IsNotExist(err) {
 		os.WriteFile(logsPath, []byte("[]"), 0644)
+	}
+
+	if diskWarningMsg != "" {
+		addLog("WARNING", "connection_status", "", diskWarningMsg)
 	}
 
 	dbLog := waLog.Stdout("Database", "ERROR", true)
@@ -1029,8 +1039,30 @@ func main() {
 			port = defaultPort
 		}
 		fmt.Printf("Dashboard Web Server Active on port %s\n", port)
+		if extURL := os.Getenv("RENDER_EXTERNAL_URL"); extURL != "" {
+			fmt.Printf("ℹ️ Info: Render Public URL detected: %s\n", extURL)
+		}
 		http.ListenAndServe(":"+port, nil)
 	}()
+
+	// Self-ping loop to prevent Render from putting the app to sleep
+	if externalURL := os.Getenv("RENDER_EXTERNAL_URL"); externalURL != "" {
+		go func() {
+			pingURL := fmt.Sprintf("%s/ping", strings.TrimSuffix(externalURL, "/"))
+			addLog("INFO", "connection_status", "", fmt.Sprintf("Self-ping loop active targeting: %s", pingURL))
+			// Wait 5 minutes before the first ping to let startup complete
+			time.Sleep(5 * time.Minute)
+			ticker := time.NewTicker(10 * time.Minute)
+			for range ticker.C {
+				resp, err := http.Get(pingURL)
+				if err != nil {
+					addLog("WARNING", "connection_status", "", fmt.Sprintf("Self-ping failed: %v", err))
+				} else {
+					resp.Body.Close()
+				}
+			}
+		}()
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
