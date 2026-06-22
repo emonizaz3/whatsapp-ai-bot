@@ -817,6 +817,90 @@ func handleConnect(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"success"}`))
 }
 
+type PairCodeRequest struct {
+	Phone string `json:"phone"`
+}
+
+type PairCodeResponse struct {
+	Status string `json:"status"`
+	Code   string `json:"code,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+func handleConnectCode(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req PairCodeRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	phone := cleanNumber(req.Phone)
+	if phone == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(PairCodeResponse{Status: "error", Error: "Phone number is required"})
+		return
+	}
+
+	whatsmeowMutex.Lock()
+	if client != nil && client.IsConnected() && client.IsLoggedIn() {
+		whatsmeowMutex.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(PairCodeResponse{Status: "already_connected"})
+		return
+	}
+
+	if client != nil && client.IsConnected() {
+		client.Disconnect()
+	}
+	whatsmeowMutex.Unlock()
+
+	go connectWhatsApp()
+
+	connected := false
+	for i := 0; i < 20; i++ {
+		time.Sleep(500 * time.Millisecond)
+		whatsmeowMutex.Lock()
+		if client != nil && client.IsConnected() {
+			connected = true
+			whatsmeowMutex.Unlock()
+			break
+		}
+		whatsmeowMutex.Unlock()
+	}
+
+	if !connected {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(PairCodeResponse{Status: "error", Error: "Failed to connect to WhatsApp servers"})
+		return
+	}
+
+	code, err := client.PairPhone(context.Background(), phone, true, whatsmeow.PairClientAndroid, "Chrome (Linux)")
+	if err != nil {
+		addLog("ERROR", "connection_status", "", fmt.Sprintf("Failed to generate pairing code: %v", err))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(PairCodeResponse{Status: "error", Error: fmt.Sprintf("Pairing code error: %v", err)})
+		return
+	}
+
+	whatsmeowMutex.Lock()
+	connStatus = "QR_CODE_READY"
+	whatsmeowMutex.Unlock()
+
+	addLog("INFO", "connection_status", "", fmt.Sprintf("Pairing code generated for %s: %s", phone, code))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(PairCodeResponse{Status: "success", Code: code})
+}
+
 func main() {
 	godotenv.Load()
 
@@ -871,6 +955,7 @@ func main() {
 	http.HandleFunc("/api/logs/clear", handleClearLogs)
 	http.HandleFunc("/api/logout", handleLogout)
 	http.HandleFunc("/api/connect", handleConnect)
+	http.HandleFunc("/api/connect/code", handleConnectCode)
 
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

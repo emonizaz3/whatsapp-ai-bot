@@ -279,6 +279,7 @@ function setupEventListeners() {
   document.getElementById('clear-logs-btn').addEventListener('click', clearLogs);
   document.getElementById('logout-btn').addEventListener('click', logoutDevice);
   document.getElementById('connect-btn').addEventListener('click', connectDevice);
+  document.getElementById('get-pair-code-btn').addEventListener('click', getPairingCode);
   document.getElementById('toggle-key-visibility').addEventListener('click', togglePasswordReveal);
 
   // Filters
@@ -355,17 +356,10 @@ function showQRCodeState(qrCode) {
   const frame = document.getElementById('auth-qr');
   frame.classList.remove('hidden');
   
-  if (!qrGenerator) {
-    qrGenerator = new QRious({
-      element: document.getElementById('qr-canvas'),
-      value: qrCode,
-      size: 200,
-      background: '#ffffff',
-      foreground: '#0f172a'
-    });
-    return;
+  const qrImg = document.getElementById('qr-image');
+  if (qrImg) {
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCode)}`;
   }
-  qrGenerator.value = qrCode;
 }
 
 function updateStatusHeaderBadge(status) {
@@ -490,6 +484,56 @@ async function connectDevice() {
     }
   } catch (error) {
     showNotification('Failed to start connection process.', 'error');
+  } finally {
+    isRequesting = false;
+  }
+}
+
+/**
+ * Requests a WhatsApp pairing code for the specified phone number.
+ */
+async function getPairingCode() {
+  if (isRequesting) return;
+  
+  const phoneInput = document.getElementById('pair-phone-input');
+  const phone = phoneInput.value.trim();
+  if (!phone) {
+    showNotification('Please enter a valid phone number.', 'error');
+    return;
+  }
+
+  isRequesting = true;
+  showNotification('Requesting pairing code...', 'info');
+  
+  const container = document.getElementById('pair-code-display-container');
+  const codeVal = document.getElementById('pair-code-val');
+  container.classList.add('hidden');
+
+  try {
+    const response = await fetch('/api/connect/code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    
+    if (!response.ok) {
+      const errData = await response.json();
+      showNotification(errData.error || 'Failed to generate code.', 'error');
+      return;
+    }
+
+    const result = await response.json();
+    if (result.status === 'success' && result.code) {
+      codeVal.textContent = result.code;
+      container.classList.remove('hidden');
+      showNotification('Pairing code generated!', 'success');
+      fetchBotStatus();
+    } else if (result.status === 'already_connected') {
+      showNotification('Device is already connected.', 'warning');
+      fetchBotStatus();
+    }
+  } catch (error) {
+    showNotification('Failed to connect to backend.', 'error');
   } finally {
     isRequesting = false;
   }

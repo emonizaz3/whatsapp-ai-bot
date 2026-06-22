@@ -250,14 +250,29 @@
           </div>
 
           <!-- State 2: QR Scanner Required -->
-          <div id="auth-qr" class="hidden flex flex-col items-center text-center gap-3">
+          <div id="auth-qr" class="hidden flex flex-col items-center text-center gap-3 w-full">
             <div class="bg-white p-2.5 rounded-xl shadow-inner border border-indigo-500/20">
-              <canvas id="qr-canvas" class="w-36 h-36 block"></canvas>
+              <img id="qr-image" class="w-36 h-36 block mx-auto" src="" alt="WhatsApp QR Code">
             </div>
             <div>
               <div class="text-xs font-bold text-slate-200">Scan QR Code to Login</div>
               <div class="text-[10px] text-slate-400 mt-0.5 max-w-[320px] mx-auto leading-relaxed">
                 Settings > Linked Devices > Link a Device on WhatsApp.
+              </div>
+            </div>
+            
+            <!-- Pairing Code alternative -->
+            <div class="border-t border-slate-800/80 pt-3 mt-2 w-full">
+              <div class="text-[10px] text-slate-400 mb-1.5 font-medium">Or link with phone number:</div>
+              <div class="flex gap-2 max-w-[280px] mx-auto">
+                <input type="text" id="pair-phone-input" placeholder="e.g. 8801747874100" class="flex-1 bg-slate-950/70 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-100 focus:outline-none focus:border-indigo-500/80 text-[11px]">
+                <button id="get-pair-code-btn" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-[11px] font-bold rounded-lg transition shrink-0">
+                  Get Code
+                </button>
+              </div>
+              <div id="pair-code-display-container" class="hidden mt-3 bg-slate-950/80 border border-indigo-500/25 rounded-lg p-2 max-w-[200px] mx-auto">
+                <div class="text-[9px] font-semibold text-indigo-400 uppercase tracking-wider mb-0.5">Pairing Code</div>
+                <div id="pair-code-val" class="font-mono text-lg font-bold text-white tracking-widest uppercase select-all"></div>
               </div>
             </div>
           </div>
