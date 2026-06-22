@@ -59,3 +59,23 @@ Since Render containers have ephemeral filesystems, any files created during run
    * **Option A (QR Code):** Open WhatsApp on your primary phone, navigate to **Settings > Linked Devices > Link a Device**, and scan the QR code displayed on the screen.
    * **Option B (Phone Pairing Code):** Enter your phone number in international format (e.g., `8801700000000` with country code, no `+` or spaces) and click **Get Code**. Go to Link a Device on your phone and tap **Link with phone number instead** to enter the 8-digit code.
 4. Once paired, your bot is active and will automatically reply to incoming messages from your configured targets!
+
+---
+
+## Keeping the Bot Online 24/7 (Free Tier Stay-Awake Setup)
+
+By default, Render's Free tier puts web services to sleep after 15 minutes of inactivity. When asleep, your bot goes offline and cannot respond.
+
+While we have implemented an **automatic background self-ping loop** (which automatically pings itself every 10 minutes when active to prevent sleeping), you can also set up a free external ping monitor using **UptimeRobot** as a bulletproof backup to wake up the server if it ever shuts down.
+
+### How to configure UptimeRobot:
+1. Go to [UptimeRobot](https://uptimerobot.com) and create a free account.
+2. In your dashboard, click **Add New Monitor**.
+3. Configure the monitor settings:
+   * **Monitor Type:** `HTTP(s)`
+   * **Friendly Name:** `WhatsApp AI Bot`
+   * **URL (or IP):** `https://your-app-name.onrender.com/ping` *(Replace this with your public Render URL, appending `/ping` to the end)*
+   * **Monitoring Interval:** `Every 5 minutes`
+4. Click **Create Monitor**.
+
+UptimeRobot will now ping your bot's public `/ping` endpoint every 5 minutes. This simulates external traffic, keeping your Render container active and preventing it from falling asleep.
