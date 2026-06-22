@@ -385,8 +385,13 @@ function updateStatusHeaderBadge(status) {
     pulse.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75';
     return;
   }
+  if (status === 'DISCONNECTED') {
+    indicator.className = 'relative inline-flex rounded-full h-2 w-2 bg-rose-500';
+    pulse.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75';
+    return;
+  }
   
-  // Default DISCONNECTED or CONNECTING states
+  // Default CONNECTING or other states
   indicator.className = 'relative inline-flex rounded-full h-2 w-2 bg-indigo-500';
   pulse.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75';
 }

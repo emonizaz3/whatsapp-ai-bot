@@ -557,8 +557,12 @@ func eventHandler(evt interface{}) {
 func connectWhatsApp() {
 	whatsmeowMutex.Lock()
 	if client.IsConnected() {
-		whatsmeowMutex.Unlock()
-		return
+		if client.IsLoggedIn() {
+			whatsmeowMutex.Unlock()
+			return
+		}
+		// If connected but not logged in, disconnect to reset and allow a new connection and QR code generation
+		client.Disconnect()
 	}
 	connStatus = "CONNECTING"
 	whatsmeowMutex.Unlock()
@@ -656,16 +660,29 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	defer whatsmeowMutex.Unlock()
 
 	isConnected := false
+	isLoggedIn := false
 	if client != nil {
 		isConnected = client.IsConnected()
-		if isConnected && connStatus != "CONNECTED" {
-			connStatus = "CONNECTED"
-			if client.Store.ID != nil {
-				connectedPhone = client.Store.ID.User
+		isLoggedIn = client.IsLoggedIn()
+
+		if isConnected && isLoggedIn {
+			if connStatus != "CONNECTED" {
+				connStatus = "CONNECTED"
+				if client.Store.ID != nil {
+					connectedPhone = client.Store.ID.User
+				}
 			}
-		} else if !isConnected && connStatus == "CONNECTED" {
+		} else if !isConnected {
 			connStatus = "DISCONNECTED"
 			connectedPhone = ""
+			qrCodeString = ""
+		} else {
+			// Connected to server but not logged in (e.g. timeout or logout happened)
+			if connStatus == "CONNECTED" {
+				connStatus = "DISCONNECTED"
+				connectedPhone = ""
+				qrCodeString = ""
+			}
 		}
 	}
 
