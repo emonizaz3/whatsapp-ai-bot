@@ -787,6 +787,12 @@ func main() {
 		dataDir = envDir
 		if err := os.MkdirAll(dataDir, 0755); err != nil {
 			fmt.Printf("⚠️ Warning: Failed to create DATA_DIR %s: %v\n", dataDir, err)
+			// Fallback to local directory if we can't write to the specified DATA_DIR
+			dataDir = "./data"
+			if errFallback := os.MkdirAll(dataDir, 0755); errFallback != nil {
+				dataDir = "."
+			}
+			fmt.Printf("ℹ️ Info: Falling back to local data directory: %s\n", dataDir)
 		}
 		configPath = filepath.Join(dataDir, "config.json")
 		logsPath = filepath.Join(dataDir, "logs.json")
