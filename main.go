@@ -779,6 +779,27 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"success"}`))
 }
 
+func handleConnect(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	whatsmeowMutex.Lock()
+	if client != nil && client.IsConnected() {
+		whatsmeowMutex.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"already_connected"}`))
+		return
+	}
+	whatsmeowMutex.Unlock()
+
+	go connectWhatsApp()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status":"success"}`))
+}
+
 func main() {
 	godotenv.Load()
 
@@ -832,6 +853,7 @@ func main() {
 	http.HandleFunc("/api/logs", handleLogs)
 	http.HandleFunc("/api/logs/clear", handleClearLogs)
 	http.HandleFunc("/api/logout", handleLogout)
+	http.HandleFunc("/api/connect", handleConnect)
 
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

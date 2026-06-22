@@ -11,6 +11,7 @@ const CONFIG_API = '/api/config';
 const LOGS_API = '/api/logs';
 const LOGS_CLEAR_API = '/api/logs/clear';
 const LOGOUT_API = '/api/logout';
+const CONNECT_API = '/api/connect';
 const POLL_INTERVAL_MS = 2500;
 
 let currentLogs = [];
@@ -130,6 +131,7 @@ function updateConnectionStatusUI(data) {
   document.getElementById('auth-loading').classList.add('hidden');
   document.getElementById('auth-qr').classList.add('hidden');
   document.getElementById('auth-connected').classList.add('hidden');
+  document.getElementById('auth-disconnected').classList.add('hidden');
 
   if (status === 'CONNECTED') {
     showConnectedState(phone);
@@ -138,6 +140,10 @@ function updateConnectionStatusUI(data) {
   }
   if (status === 'QR_CODE_READY' && qrCode) {
     showQRCodeState(qrCode);
+    return;
+  }
+  if (status === 'DISCONNECTED') {
+    document.getElementById('auth-disconnected').classList.remove('hidden');
     return;
   }
   
@@ -272,6 +278,7 @@ function setupEventListeners() {
   document.getElementById('delay-toggle-btn').addEventListener('click', handleDelayToggle);
   document.getElementById('clear-logs-btn').addEventListener('click', clearLogs);
   document.getElementById('logout-btn').addEventListener('click', logoutDevice);
+  document.getElementById('connect-btn').addEventListener('click', connectDevice);
   document.getElementById('toggle-key-visibility').addEventListener('click', togglePasswordReveal);
 
   // Filters
@@ -460,6 +467,26 @@ async function logoutDevice() {
     }
   } catch (error) {
     showNotification('Logout failed.', 'error');
+  }
+}
+
+/**
+ * Triggers background connection process for the WhatsApp device.
+ */
+async function connectDevice() {
+  if (isRequesting) return;
+  isRequesting = true;
+  showNotification('Connecting WhatsApp...', 'info');
+  try {
+    const response = await fetch(CONNECT_API, { method: 'POST' });
+    const result = await response.json();
+    if (result.status === 'success' || result.status === 'already_connected') {
+      fetchBotStatus();
+    }
+  } catch (error) {
+    showNotification('Failed to start connection process.', 'error');
+  } finally {
+    isRequesting = false;
   }
 }
 
