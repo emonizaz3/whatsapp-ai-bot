@@ -119,6 +119,10 @@ var (
 	qrCodeString   string = ""
 	connectedPhone string = ""
 	whatsmeowMutex sync.Mutex
+
+	// Dashboard Basic Auth
+	dashboardUser string = ""
+	dashboardPass string = ""
 )
 
 // Helpers
@@ -638,6 +642,25 @@ func connectWhatsApp() {
 }
 
 // HTTP API Handlers
+func basicAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// If credentials are not set, allow public access
+		if dashboardUser == "" || dashboardPass == "" {
+			next(w, r)
+			return
+		}
+
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != dashboardUser || pass != dashboardPass {
+			w.Header().Set("WWW-Authenticate", `Basic realm="WhatsApp AI Bot Dashboard"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		next(w, r)
+	}
+}
+
 func handleDashboard(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
 		http.ServeFile(w, r, "index.html")
@@ -904,6 +927,15 @@ func handleConnectCode(w http.ResponseWriter, r *http.Request) {
 func main() {
 	godotenv.Load()
 
+	// Load Basic Auth config
+	dashboardUser = os.Getenv("DASHBOARD_USERNAME")
+	dashboardPass = os.Getenv("DASHBOARD_PASSWORD")
+	if dashboardUser != "" && dashboardPass != "" {
+		fmt.Println("🔒 Dashboard access is secured via Basic Authentication.")
+	} else {
+		fmt.Println("🔓 Warning: Dashboard access is unsecured. Set DASHBOARD_USERNAME and DASHBOARD_PASSWORD in environment to secure it.")
+	}
+
 	// Handle persistent data directory for Render.com hosting
 	if envDir := os.Getenv("DATA_DIR"); envDir != "" {
 		dataDir = envDir
@@ -947,15 +979,15 @@ func main() {
 	go connectWhatsApp()
 
 	// Web server endpoints
-	http.HandleFunc("/", handleDashboard)
-	http.HandleFunc("/dashboard.js", handleDashboard)
-	http.HandleFunc("/api/status", handleStatus)
-	http.HandleFunc("/api/config", handleConfig)
-	http.HandleFunc("/api/logs", handleLogs)
-	http.HandleFunc("/api/logs/clear", handleClearLogs)
-	http.HandleFunc("/api/logout", handleLogout)
-	http.HandleFunc("/api/connect", handleConnect)
-	http.HandleFunc("/api/connect/code", handleConnectCode)
+	http.HandleFunc("/", basicAuth(handleDashboard))
+	http.HandleFunc("/dashboard.js", basicAuth(handleDashboard))
+	http.HandleFunc("/api/status", basicAuth(handleStatus))
+	http.HandleFunc("/api/config", basicAuth(handleConfig))
+	http.HandleFunc("/api/logs", basicAuth(handleLogs))
+	http.HandleFunc("/api/logs/clear", basicAuth(handleClearLogs))
+	http.HandleFunc("/api/logout", basicAuth(handleLogout))
+	http.HandleFunc("/api/connect", basicAuth(handleConnect))
+	http.HandleFunc("/api/connect/code", basicAuth(handleConnectCode))
 
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
