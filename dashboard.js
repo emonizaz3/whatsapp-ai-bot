@@ -12,12 +12,13 @@ const LOGS_API = '/api/logs';
 const LOGS_CLEAR_API = '/api/logs/clear';
 const LOGOUT_API = '/api/logout';
 const CONNECT_API = '/api/connect';
+const CANCEL_API = '/api/connect/cancel';
 const POLL_INTERVAL_MS = 2500;
 
 let currentLogs = [];
 let currentFilter = 'all';
 let isRequesting = false;
-let qrGenerator = null;
+let lastQRCode = '';
 let activeRepliesState = [];
 let countdownIntervalId = null;
 
@@ -134,6 +135,7 @@ function updateConnectionStatusUI(data) {
   document.getElementById('auth-disconnected').classList.add('hidden');
 
   if (status === 'CONNECTED') {
+    lastQRCode = '';
     showConnectedState(phone);
     updateActiveCountdowns(data.active_replies ?? []);
     return;
@@ -142,6 +144,8 @@ function updateConnectionStatusUI(data) {
     showQRCodeState(qrCode);
     return;
   }
+  
+  lastQRCode = '';
   if (status === 'DISCONNECTED') {
     document.getElementById('auth-disconnected').classList.remove('hidden');
     return;
@@ -280,6 +284,8 @@ function setupEventListeners() {
   document.getElementById('logout-btn').addEventListener('click', logoutDevice);
   document.getElementById('connect-btn').addEventListener('click', connectDevice);
   document.getElementById('get-pair-code-btn').addEventListener('click', getPairingCode);
+  document.getElementById('cancel-btn').addEventListener('click', cancelPairing);
+  document.getElementById('cancel-loading-btn').addEventListener('click', cancelPairing);
   document.getElementById('toggle-key-visibility').addEventListener('click', togglePasswordReveal);
 
   // Filters
@@ -356,6 +362,11 @@ function showQRCodeState(qrCode) {
   const frame = document.getElementById('auth-qr');
   frame.classList.remove('hidden');
   
+  if (qrCode === lastQRCode) {
+    return;
+  }
+  lastQRCode = qrCode;
+
   const qrImg = document.getElementById('qr-image');
   if (qrImg) {
     qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCode)}`;
@@ -534,6 +545,27 @@ async function getPairingCode() {
     }
   } catch (error) {
     showNotification('Failed to connect to backend.', 'error');
+  } finally {
+    isRequesting = false;
+  }
+}
+
+/**
+ * Cancels any active WhatsApp connection or pairing process.
+ */
+async function cancelPairing() {
+  if (isRequesting) return;
+  isRequesting = true;
+  showNotification('Cancelling connection...', 'info');
+  try {
+    const response = await fetch(CANCEL_API, { method: 'POST' });
+    const result = await response.json();
+    if (result.status === 'success') {
+      showNotification('Connection cancelled.', 'success');
+      fetchBotStatus();
+    }
+  } catch (error) {
+    showNotification('Failed to cancel connection.', 'error');
   } finally {
     isRequesting = false;
   }

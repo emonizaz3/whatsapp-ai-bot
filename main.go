@@ -22,6 +22,7 @@ import (
 	"github.com/mdp/qrterminal/v3"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
+	"go.mau.fi/whatsmeow/store"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
@@ -924,8 +925,31 @@ func handleConnectCode(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(PairCodeResponse{Status: "success", Code: code})
 }
 
+func handleCancel(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	whatsmeowMutex.Lock()
+	if client != nil {
+		client.Disconnect()
+	}
+	connStatus = "DISCONNECTED"
+	qrCodeString = ""
+	whatsmeowMutex.Unlock()
+
+	addLog("INFO", "connection_status", "", "WhatsApp connection attempt cancelled by user.")
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status":"success"}`))
+}
+
 func main() {
 	godotenv.Load()
+
+	// Customize WhatsApp linked device companion OS name
+	store.DeviceProps.Os = proto.String("WhatsApp Bot by Izaz")
 
 	// Load Basic Auth config
 	dashboardUser = os.Getenv("DASHBOARD_USERNAME")
@@ -975,8 +999,12 @@ func main() {
 	client = whatsmeow.NewClient(deviceStore, clientLog)
 	client.AddEventHandler(eventHandler)
 
-	// Run connection flow in background
-	go connectWhatsApp()
+	// Connect automatically on startup ONLY if device is already paired
+	if deviceStore != nil && deviceStore.ID != nil {
+		go connectWhatsApp()
+	} else {
+		addLog("INFO", "connection_status", "", "No paired device found. Bot is staying DISCONNECTED on default startup.")
+	}
 
 	// Web server endpoints
 	http.HandleFunc("/", basicAuth(handleDashboard))
@@ -988,6 +1016,7 @@ func main() {
 	http.HandleFunc("/api/logout", basicAuth(handleLogout))
 	http.HandleFunc("/api/connect", basicAuth(handleConnect))
 	http.HandleFunc("/api/connect/code", basicAuth(handleConnectCode))
+	http.HandleFunc("/api/connect/cancel", basicAuth(handleCancel))
 
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
