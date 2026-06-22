@@ -41,7 +41,7 @@ var (
 	dataDir    = "."
 	configPath = "config.json"
 	logsPath   = "logs.json"
-	dbPath     = "file:store.db?_foreign_keys=on"
+	dbPath     = "store.db?_foreign_keys=on"
 )
 
 // Structures
@@ -785,10 +785,12 @@ func main() {
 	// Handle persistent data directory for Render.com hosting
 	if envDir := os.Getenv("DATA_DIR"); envDir != "" {
 		dataDir = envDir
-		os.MkdirAll(dataDir, 0755)
+		if err := os.MkdirAll(dataDir, 0755); err != nil {
+			fmt.Printf("⚠️ Warning: Failed to create DATA_DIR %s: %v\n", dataDir, err)
+		}
 		configPath = filepath.Join(dataDir, "config.json")
 		logsPath = filepath.Join(dataDir, "logs.json")
-		dbPath = fmt.Sprintf("file:%s?_foreign_keys=on", filepath.Join(dataDir, "store.db"))
+		dbPath = filepath.Join(dataDir, "store.db") + "?_foreign_keys=on"
 	}
 
 	loadConfig()
