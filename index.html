@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp AI Bot Dashboard</title>
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Outfit', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <!-- Google Font: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <!-- Moment.js for date and time formatting -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+  <!-- QRious library for QR Code Generation from raw string -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <style>
+    /* Custom scrollbar for containers */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.3);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.25);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.45);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen lg:h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white lg:overflow-hidden">
+
+  <!-- Header Section -->
+  <header class="shrink-0 w-full backdrop-blur-md bg-slate-900/65 border-b border-slate-800/80 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+        <mat-icon class="material-icons text-white select-none text-2xl">smart_toy</mat-icon>
+      </div>
+      <div>
+        <div class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+          WhatsApp AI Bot
+          <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/25">v2.2</span>
+        </div>
+        <div class="text-xs text-slate-400">Automated intelligent WhatsApp responder</div>
+      </div>
+    </div>
+
+    <!-- Quick Status Controls -->
+    <div class="flex items-center gap-6">
+      <!-- Status Badge -->
+      <div class="flex items-center gap-2 bg-slate-950/40 border border-slate-800/50 rounded-full px-3 py-1.5">
+        <span class="relative flex h-2 w-2">
+          <span id="status-pulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-500 opacity-75"></span>
+          <span id="status-indicator" class="relative inline-flex rounded-full h-2 w-2 bg-slate-500"></span>
+        </span>
+        <span id="status-text" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Loading</span>
+      </div>
+
+      <!-- Quick Toggle Bot Active -->
+      <div class="flex items-center gap-3 border-l border-slate-800 pl-6">
+        <span class="text-xs font-medium text-slate-400">Bot Status</span>
+        <button id="bot-toggle-btn" class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-slate-800" role="switch" aria-checked="false">
+          <span id="bot-toggle-thumb" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Section -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0 lg:h-[calc(100vh-140px)]">
+    <!-- Left Column: Config Panel (5 cols) -->
+    <section class="lg:col-span-5 flex flex-col h-full min-h-0">
+      <div class="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-6 backdrop-blur-sm flex flex-col h-full shadow-xl min-h-0">
+        <!-- Section Header -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4 shrink-0">
+          <div class="flex items-center gap-2.5">
+            <mat-icon class="material-icons text-indigo-400 select-none">settings</mat-icon>
+            <div class="text-base font-bold text-white tracking-wide">Configurations</div>
+          </div>
+          <button id="save-config-btn" class="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition shadow-lg shadow-indigo-600/20">
+            <mat-icon class="material-icons text-xs select-none">save</mat-icon>
+            Save Changes
+          </button>
+        </div>
+
+        <!-- Configuration Form Tabs Header -->
+        <div class="flex border-b border-slate-800 mb-5 gap-2 shrink-0">
+          <button id="tab-general" class="tab-btn px-3.5 py-2 text-xs font-medium text-indigo-400 border-b-2 border-indigo-500 -mb-[1px] transition-all">General Settings</button>
+          <button id="tab-ai" class="tab-btn px-3.5 py-2 text-xs font-medium text-slate-400 hover:text-slate-200 border-b-2 border-transparent -mb-[1px] transition-all">AI Prompt & Model</button>
+          <button id="tab-timing" class="tab-btn px-3.5 py-2 text-xs font-medium text-slate-400 hover:text-slate-200 border-b-2 border-transparent -mb-[1px] transition-all">Timing & Limits</button>
+        </div>
+
+        <!-- Configuration Form Contents (Scrollable inside Column) -->
+        <div class="flex-1 overflow-y-auto pr-1">
+          <!-- Tab Panel: General -->
+          <div id="panel-general" class="tab-panel space-y-5">
+            <!-- Target Numbers -->
+            <div class="flex flex-col gap-2">
+              <label for="target-number" class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <mat-icon class="material-icons text-slate-400 text-sm select-none">contact_phone</mat-icon>
+                Target WhatsApp Numbers
+              </label>
+              <input type="text" id="target-number" placeholder="e.g. 8801700000000, 8801800000000" class="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500/80 transition text-xs">
+              <p class="text-[10px] text-slate-500 leading-normal">Provide a comma-separated list of target numbers to monitor (with country code, no + or spaces).</p>
+            </div>
+
+            <!-- Groq API Key -->
+            <div class="flex flex-col gap-2">
+              <label for="groq-key" class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <mat-icon class="material-icons text-slate-400 text-sm select-none">vpn_key</mat-icon>
+                Groq API Key
+              </label>
+              <div class="relative">
+                <input type="password" id="groq-key" placeholder="gsk_..." class="w-full bg-slate-950/70 border border-slate-800 rounded-xl pl-4 pr-10 py-3 text-slate-100 focus:outline-none focus:border-indigo-500/80 transition text-xs">
+                <button type="button" id="toggle-key-visibility" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition">
+                  <mat-icon class="material-icons text-lg select-none">visibility</mat-icon>
+                </button>
+              </div>
+              <p class="text-[10px] text-slate-500 leading-normal">Your Groq developer API authorization token.</p>
+            </div>
+          </div>
+
+          <!-- Tab Panel: AI Prompt -->
+          <div id="panel-ai" class="tab-panel hidden space-y-5">
+            <!-- Model Choice -->
+            <div class="flex flex-col gap-2">
+              <label for="ai-model" class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <mat-icon class="material-icons text-slate-400 text-sm select-none">dns</mat-icon>
+                AI Model Designation
+              </label>
+              <div class="relative">
+                <select id="ai-model" class="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500/80 transition text-xs appearance-none cursor-pointer">
+                  <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
+                  <option value="llama-3.1-8b-instant">llama-3.1-8b-instant</option>
+                  <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
+                  <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (Custom Model)</option>
+                </select>
+                <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <mat-icon class="material-icons select-none">arrow_drop_down</mat-icon>
+                </div>
+              </div>
+            </div>
+
+            <!-- System Prompt -->
+            <div class="flex flex-col gap-2">
+              <label for="system-prompt" class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <mat-icon class="material-icons text-slate-400 text-sm select-none">psychology</mat-icon>
+                AI Personality / System Prompt
+              </label>
+              <textarea id="system-prompt" rows="9" placeholder="Define the AI persona rules..." class="w-full bg-slate-950/70 border border-slate-800 rounded-xl p-4 text-slate-100 focus:outline-none focus:border-indigo-500/80 transition text-xs resize-none"></textarea>
+              <p class="text-[10px] text-slate-500 leading-normal">Instruct the LLM engine how to behave, respond, and adapt to the conversations.</p>
+            </div>
+          </div>
+
+          <!-- Tab Panel: Timing -->
+          <div id="panel-timing" class="tab-panel hidden space-y-5">
+            <!-- Grid for Cooldown and Limits -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Cooldown Minutes -->
+              <div class="flex flex-col gap-2">
+                <label for="cooldown" class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <mat-icon class="material-icons text-slate-400 text-sm select-none">hourglass_empty</mat-icon>
+                  Cooldown (Minutes)
+                </label>
+                <input type="number" id="cooldown" min="0" placeholder="10" class="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500/80 transition text-xs">
+                <p class="text-[10px] text-slate-500 leading-normal">Minimum wait time before responding to a new incoming message from a target.</p>
+              </div>
+
+              <!-- Daily Limits -->
+              <div class="flex flex-col gap-2">
+                <label for="daily-limit" class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <mat-icon class="material-icons text-slate-400 text-sm select-none">today</mat-icon>
+                  Daily Reply Limit
+                </label>
+                <input type="number" id="daily-limit" min="0" placeholder="2" class="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-indigo-500/80 transition text-xs">
+                <p class="text-[10px] text-slate-500 leading-normal">Maximum responses sent per target per day. Set to 0 to disable daily limits.</p>
+              </div>
+            </div>
+
+            <!-- Reply Timing Delays Toggle -->
+            <div class="border-t border-slate-800/85 pt-4 space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <mat-icon class="material-icons text-slate-400 text-sm select-none">shuffle</mat-icon>
+                    Enable Randomized Delays
+                  </div>
+                  <div class="text-[10px] text-slate-500 mt-0.5 leading-normal">Delays sending responses randomly to mimic human typing speeds.</div>
+                </div>
+                <button id="delay-toggle-btn" class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-slate-800" role="switch">
+                  <span id="delay-toggle-thumb" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
+                </button>
+              </div>
+
+              <!-- Delay Ranges inputs -->
+              <div id="delay-inputs-container" class="grid grid-cols-2 gap-4 hidden bg-slate-950/40 p-4 border border-slate-800/50 rounded-xl">
+                <div class="flex flex-col gap-1.5">
+                  <label for="delay-min" class="text-[10px] font-bold text-slate-400">Min Delay (Seconds)</label>
+                  <input type="number" id="delay-min" min="1" placeholder="60" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-indigo-500/80 text-xs">
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <label for="delay-max" class="text-[10px] font-bold text-slate-400">Max Delay (Seconds)</label>
+                  <input type="number" id="delay-max" min="1" placeholder="180" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-indigo-500/80 text-xs">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Status info at top & Logs panel at bottom (7 cols, stretches full height) -->
+    <section class="lg:col-span-7 flex flex-col h-full min-h-0 gap-6">
+      
+      <!-- Top Card: WhatsApp Authentication Info & Active Countdowns -->
+      <div class="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-5 backdrop-blur-sm shadow-xl shrink-0">
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-3.5">
+          <div class="flex items-center gap-2">
+            <mat-icon class="material-icons text-indigo-400 text-sm select-none">phonelink_setup</mat-icon>
+            <div class="text-sm font-bold text-white tracking-wide">WhatsApp Authentication</div>
+          </div>
+          <!-- Quick Status Indicator -->
+          <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+            JID Status
+          </div>
+        </div>
+
+        <div id="auth-state-container" class="flex flex-col items-center justify-center py-1">
+          <!-- State 1: Loading/Connecting Status -->
+          <div id="auth-loading" class="flex items-center gap-3 text-center">
+            <div class="w-5 h-5 rounded-full border-2 border-slate-800 border-t-indigo-500 animate-spin"></div>
+            <div class="text-xs font-semibold text-slate-400">Loading WhatsApp device session...</div>
+          </div>
+
+          <!-- State 2: QR Scanner Required -->
+          <div id="auth-qr" class="hidden flex flex-col items-center text-center gap-3">
+            <div class="bg-white p-2.5 rounded-xl shadow-inner border border-indigo-500/20">
+              <canvas id="qr-canvas" class="w-36 h-36 block"></canvas>
+            </div>
+            <div>
+              <div class="text-xs font-bold text-slate-200">Scan QR Code to Login</div>
+              <div class="text-[10px] text-slate-400 mt-0.5 max-w-[320px] mx-auto leading-relaxed">
+                Settings > Linked Devices > Link a Device on WhatsApp.
+              </div>
+            </div>
+          </div>
+
+          <!-- State 3: Connected Successfully -->
+          <div id="auth-connected" class="hidden flex flex-col md:flex-row items-center justify-between gap-4 w-full text-left">
+            <div class="flex items-center gap-3.5">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <mat-icon class="material-icons select-none text-2xl">check_circle_outline</mat-icon>
+              </div>
+              <div>
+                <div class="text-xs font-bold text-emerald-400 uppercase tracking-wide">Device Status: Connected</div>
+                <div class="text-[11px] font-semibold text-slate-300 mt-0.5">JID: <span id="connected-phone-display" class="font-mono text-indigo-400">...</span></div>
+              </div>
+            </div>
+
+            <!-- Active Response Countdowns list -->
+            <div id="countdown-wrapper" class="hidden bg-slate-950/60 border border-slate-800/80 rounded-xl px-3 py-2 min-w-[200px] shrink-0">
+              <div class="text-[10px] font-bold text-indigo-400 flex items-center gap-1 mb-1">
+                <mat-icon class="material-icons text-[12px] select-none">hourglass_top</mat-icon>
+                Active Response Countdowns
+              </div>
+              <div id="countdown-list" class="space-y-1 max-h-[60px] overflow-y-auto pr-1">
+                <!-- Ticking countdown timers here -->
+              </div>
+            </div>
+
+            <button id="logout-btn" class="flex items-center gap-1 px-3 py-1.5 border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10 active:bg-rose-500/20 text-rose-400 text-[10px] font-bold rounded-lg transition shrink-0">
+              <mat-icon class="material-icons text-xs select-none">logout</mat-icon>
+              Disconnect
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Card: Activity Logs panel (Takes remaining height: flex-1 min-h-0) -->
+      <div class="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-5 backdrop-blur-sm shadow-xl flex-1 flex flex-col min-h-0">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-3.5 shrink-0">
+          <div class="flex items-center gap-2.5">
+            <mat-icon class="material-icons text-indigo-400 select-none">receipt_long</mat-icon>
+            <div class="text-base font-bold text-white tracking-wide">Live Activity logs</div>
+          </div>
+          <button id="clear-logs-btn" class="flex items-center gap-1 px-2.5 py-1 border border-slate-800 hover:border-slate-700 bg-slate-950/40 hover:bg-slate-950/70 text-slate-400 hover:text-slate-300 text-xs font-semibold rounded-lg transition">
+            <mat-icon class="material-icons text-xs select-none">delete_sweep</mat-icon>
+            Clear
+          </button>
+        </div>
+
+        <!-- Log Filters & Target Selector (shrink-0) -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3 text-xs shrink-0">
+          <!-- Type Filter Badges -->
+          <div class="flex flex-wrap gap-1">
+            <button id="filter-all" class="filter-btn px-2.5 py-1 rounded bg-slate-800 text-white font-medium">All</button>
+            <button id="filter-success" class="filter-btn px-2.5 py-1 rounded bg-slate-950/40 border border-slate-800 hover:bg-slate-800 text-slate-400">Success</button>
+            <button id="filter-info" class="filter-btn px-2.5 py-1 rounded bg-slate-950/40 border border-slate-800 hover:bg-slate-800 text-slate-400">Info</button>
+            <button id="filter-warning" class="filter-btn px-2.5 py-1 rounded bg-slate-950/40 border border-slate-800 hover:bg-slate-800 text-slate-400">Warning</button>
+            <button id="filter-error" class="filter-btn px-2.5 py-1 rounded bg-slate-950/40 border border-slate-800 hover:bg-slate-800 text-slate-400">Error</button>
+          </div>
+          <!-- Target Selector Dropdown -->
+          <div class="flex items-center gap-1.5 bg-slate-950/80 border border-slate-800/80 rounded-lg px-2.5 py-1 shrink-0">
+            <span class="text-slate-500 font-semibold uppercase tracking-wider text-[9px]">Filter Target:</span>
+            <select id="target-filter" class="bg-transparent border-0 text-slate-300 text-xs focus:outline-none cursor-pointer pr-1">
+              <option value="all">All Targets</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Log Stream (Scrollable inside card: flex-1 overflow-y-auto min-h-0) -->
+        <div id="logs-container" class="flex-1 overflow-y-auto bg-slate-950/90 border border-slate-800/80 rounded-xl p-4 font-mono text-[11px] leading-relaxed text-slate-300 space-y-2.5 min-h-0">
+          <!-- Dynamic Log Entries Inserted Here -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer Section -->
+  <footer class="shrink-0 w-full bg-slate-950 border-t border-slate-900 px-6 py-3.5 flex items-center justify-between text-xs text-slate-500">
+    <div>&copy; 2026 WhatsApp Bot Engine. All rights reserved.</div>
+    <div class="flex items-center gap-1.5 text-slate-400">
+      <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+      System operational
+    </div>
+  </footer>
+
+  <!-- Link to Dashboard Script -->
+  <script src="/dashboard.js"></script>
+</body>
+</html>

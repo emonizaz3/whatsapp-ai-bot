@@ -1,0 +1,4 @@
+.env
+store.db
+config.json
+logs.json
